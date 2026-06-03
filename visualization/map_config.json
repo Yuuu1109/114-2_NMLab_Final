@@ -1,0 +1,294 @@
+{
+  "map": {
+    "width_cells": 48,
+    "height_cells": 22,
+    "grid_step_cells": 1,
+    "unit_label": "cell",
+    "coordinate_definition": "x=column index, y=row index, 1 unit=one ceiling grid cell, y increases downward"
+  },
+  "canvas": {
+    "width_px": 1500,
+    "height_px": 760
+  },
+  "occupancy_grid": {
+    "enabled": true,
+    "origin": "top_left",
+    "y_axis": "down",
+    "legend": {
+      "#": "obstacle",
+      ".": "free",
+      "L": "light"
+    },
+    "rows": [
+      "#########################################.......",
+      "#########################################.......",
+      "#########################################.......",
+      "#########################################.L...L.",
+      "#########################################.......",
+      "#########################################.......",
+      "#########################################.......",
+      "#########################################.######",
+      "########################################..##...#",
+      "..............L....#####################.......#",
+      "..L.................##################..L......#",
+      "......................##############.......L...#",
+      "###..L.........................................#",
+      "###............................................#",
+      "###.....L..L...L...L...L...L...L...L...L...L...#",
+      "###............................................#",
+      "###########....................................#",
+      "###########....................................#",
+      "###########....................................#",
+      "###########L...L...L...L...L...L...L...L...L...#",
+      "###########......####..........................#",
+      "###########......####..........................#"
+    ]
+  },
+  "obstacles": {
+    "enabled": true,
+    "source": "occupancy_grid",
+    "draw": true,
+    "collision_check": true,
+    "note": "Black cells in occupancy_grid are obstacle cells. Locator can mark current/proposed cell as obstacle."
+  },
+  "light_cells": [
+    {
+      "name": "LIGHT_R03_C42",
+      "x": 42,
+      "y": 3
+    },
+    {
+      "name": "LIGHT_R03_C46",
+      "x": 46,
+      "y": 3
+    },
+    {
+      "name": "LIGHT_R09_C14",
+      "x": 14,
+      "y": 9
+    },
+    {
+      "name": "LIGHT_R10_C02",
+      "x": 2,
+      "y": 10
+    },
+    {
+      "name": "LIGHT_R10_C40",
+      "x": 40,
+      "y": 10
+    },
+    {
+      "name": "LIGHT_R11_C43",
+      "x": 43,
+      "y": 11
+    },
+    {
+      "name": "LIGHT_R12_C05",
+      "x": 5,
+      "y": 12
+    },
+    {
+      "name": "LIGHT_R14_C08",
+      "x": 8,
+      "y": 14
+    },
+    {
+      "name": "LIGHT_R14_C11",
+      "x": 11,
+      "y": 14
+    },
+    {
+      "name": "LIGHT_R14_C15",
+      "x": 15,
+      "y": 14
+    },
+    {
+      "name": "LIGHT_R14_C19",
+      "x": 19,
+      "y": 14
+    },
+    {
+      "name": "LIGHT_R14_C23",
+      "x": 23,
+      "y": 14
+    },
+    {
+      "name": "LIGHT_R14_C27",
+      "x": 27,
+      "y": 14
+    },
+    {
+      "name": "LIGHT_R14_C31",
+      "x": 31,
+      "y": 14
+    },
+    {
+      "name": "LIGHT_R14_C35",
+      "x": 35,
+      "y": 14
+    },
+    {
+      "name": "LIGHT_R14_C39",
+      "x": 39,
+      "y": 14
+    },
+    {
+      "name": "LIGHT_R14_C43",
+      "x": 43,
+      "y": 14
+    },
+    {
+      "name": "LIGHT_R19_C11",
+      "x": 11,
+      "y": 19
+    },
+    {
+      "name": "LIGHT_R19_C15",
+      "x": 15,
+      "y": 19
+    },
+    {
+      "name": "LIGHT_R19_C19",
+      "x": 19,
+      "y": 19
+    },
+    {
+      "name": "LIGHT_R19_C23",
+      "x": 23,
+      "y": 19
+    },
+    {
+      "name": "LIGHT_R19_C27",
+      "x": 27,
+      "y": 19
+    },
+    {
+      "name": "LIGHT_R19_C31",
+      "x": 31,
+      "y": 19
+    },
+    {
+      "name": "LIGHT_R19_C35",
+      "x": 35,
+      "y": 19
+    },
+    {
+      "name": "LIGHT_R19_C39",
+      "x": 39,
+      "y": 19
+    },
+    {
+      "name": "LIGHT_R19_C43",
+      "x": 43,
+      "y": 19
+    }
+  ],
+  "light_zones": [],
+  "output": {
+    "headless": false,
+    "display_window": true,
+    "save_map_image": true,
+    "save_interval_frames": 1,
+    "output_dir": "map_output",
+    "output_filename": "latest_map.jpg",
+    "save_sequence": true,
+    "loop_sleep_sec": 0.1
+  },
+  "auto_landmarks": {
+    "enabled_when_light_zones_empty": false,
+    "origin_from_first_point": false,
+    "default_width_cells": 1.0,
+    "default_height_cells": 1.0
+  },
+  "view": {
+    "auto_zoom": false,
+    "include_landmarks": true,
+    "padding_cells": 0.5,
+    "min_view_width_cells": 48,
+    "min_view_height_cells": 22,
+    "margin_px": 45
+  },
+  "trajectory": {
+    "draw_points": true,
+    "point_radius": 3,
+    "line_thickness": 3
+  },
+  "coordinate_basis": {
+    "mode": "ceiling_grid_cell",
+    "grid_cell_size_cm": 60.0,
+    "use_x_cell_y_cell_if_available": true,
+    "y_axis_down": true
+  },
+  "colors": {
+    "free": [
+      205,
+      205,
+      205
+    ],
+    "obstacle": [
+      0,
+      0,
+      0
+    ],
+    "light": [
+      255,
+      245,
+      195
+    ],
+    "unknown": [
+      240,
+      240,
+      240
+    ],
+    "grid_line": [
+      170,
+      170,
+      170
+    ],
+    "route": [
+      80,
+      140,
+      255
+    ],
+    "route_turn": [
+      255,
+      120,
+      80
+    ],
+    "route_goal": [
+      80,
+      80,
+      255
+    ]
+  },
+  "navigation": {
+    "enabled": true,
+    "start_cell": [
+      2,
+      10
+    ],
+    "goal_cell": [
+      43,
+      14
+    ],
+    "initial_heading": "UP",
+    "trunk_rows": [
+      16,
+      17
+    ],
+    "allow_diagonal": false,
+    "router": "waypoint_astar_4_neighbor_turn_penalty",
+    "turn_penalty": 3.0,
+    "trunk_row_penalty": 0.08,
+    "turn_arrival_radius_cells": 0.6,
+    "goal_arrival_radius_cells": 0.8,
+    "fallback_to_global_astar": true,
+    "route_path": "../data/route_path.json",
+    "navigation_status_path": "../data/navigation_status.json",
+    "draw_route": true,
+    "draw_turn_points": true,
+    "note": "start_cell/goal_cell are [x,y]=[column,row]. Route avoids # cells and uses only UP/DOWN/LEFT/RIGHT moves.",
+    "heading_note": "AUTO means inferred from the first planned route segment. No --heading flag is needed.",
+    "trunk_candidate_limit": 24
+  }
+}
