@@ -1,0 +1,23 @@
+# Runtime generated files
+data/trajectory_log.csv
+data/navigation_status.json
+data/route_path.json
+
+vision/debug_output/
+visualization/map_output/
+
+# Python cache
+__pycache__/
+*/__pycache__/
+*.pyc
+
+# Debug/media outputs
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.avi
+
+# Local backups
+*_before_*.py
+*_old_*.csv

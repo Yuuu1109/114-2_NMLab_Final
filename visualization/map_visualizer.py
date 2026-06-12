@@ -89,63 +89,143 @@ def load_trajectory():
     """
     Read trajectory_log.csv.
 
-    Preferred columns are x_cell/y_cell. Old x_cm/y_cm logs are converted by
-    grid_cell_size_cm for backward compatibility.
+    Supports both:
+      1. old 23-column logs
+      2. new state-machine 32-column logs
+      3. the common bad case where run_vision_map.py wrote the old header
+         but ceiling_vision_locator.py appended the new 32-column rows.
     """
     points = []
     if not TRAJECTORY_PATH.exists():
         return points
 
-    with open(TRAJECTORY_PATH, "r") as f:
-        reader = csv.DictReader(f)
+    old_header = [
+        "timestamp", "frame", "x_cell", "y_cell", "dx_pixel", "dy_pixel",
+        "dx_cell", "dy_cell", "zone", "grid_angle", "phase_response",
+        "map_col", "map_row", "map_cell_type", "is_obstacle",
+        "detected_light_id", "detected_light_x_cell", "detected_light_y_cell",
+        "detected_light_distance_cell", "light_based_x_cell",
+        "light_based_y_cell", "light_position_error_cell",
+        "light_validation_status",
+    ]
+
+    state_header = [
+        "timestamp", "frame", "motion_state", "current_heading",
+        "x_cell", "y_cell", "dx_pixel", "dy_pixel", "dx_cell", "dy_cell",
+        "zone", "grid_angle", "phase_response", "yaw_error_deg",
+        "angle_status", "turn_direction", "turn_image_rotation_deg",
+        "turn_vehicle_rotation_deg", "turn_progress_deg",
+        "turn_completed_by_vision", "map_col", "map_row", "map_cell_type",
+        "is_obstacle", "detected_light_id", "detected_light_x_cell",
+        "detected_light_y_cell", "detected_light_distance_cell",
+        "light_based_x_cell", "light_based_y_cell",
+        "light_position_error_cell", "light_validation_status",
+        "motion_source", "selected_response", "light_track_status",
+        "grid_track_status", "turn_target_x_cell", "turn_target_y_cell",
+        "turn_cell_distance_cell", "turn_target_source",
+    ]
+
+    def to_float(value, default=None):
+        if value == "" or value is None:
+            return default
+        try:
+            return float(value)
+        except Exception:
+            return default
+
+    def to_int(value, default=None):
+        v = to_float(value, None)
+        if v is None:
+            return default
+        return int(v)
+
+    def row_to_dict(header, row):
+        # Bad mixed-header case:
+        # old header length=23, but row length=32 and row[2] is FORWARD/TURN/STOP.
+        if len(row) >= 32 and len(header) < 32 and str(row[2]).upper() in ("FORWARD", "TURN", "STOP"):
+            return dict(zip(state_header, row[:32]))
+
+        if "motion_state" in header:
+            # Normal state-machine log. Prefer the real header so extra columns
+            # such as motion_source / track_status are preserved.
+            return dict(zip(header, row[:len(header)]))
+
+        # Normal old log.
+        return dict(zip(header, row[:len(header)]))
+
+    with open(TRAJECTORY_PATH, "r", newline="") as f:
+        reader = csv.reader(f)
+        header = next(reader, [])
+        if not header:
+            return points
+
         for row in reader:
             try:
-                grid_angle_text = row.get("grid_angle", "")
-                grid_angle = None if grid_angle_text == "" else float(grid_angle_text)
-                frame_text = row.get("frame", "")
-                frame = None if frame_text == "" else int(float(frame_text))
+                r = row_to_dict(header, row)
 
-                if row.get("x_cell", "") != "" and row.get("y_cell", "") != "":
-                    x_cell = float(row["x_cell"])
-                    y_cell = float(row["y_cell"])
-                else:
-                    x_cell = float(row["x_cm"]) / GRID_CELL_SIZE_CM
-                    y_cell = float(row["y_cm"]) / GRID_CELL_SIZE_CM
+                x_cell = to_float(r.get("x_cell", ""))
+                y_cell = to_float(r.get("y_cell", ""))
 
-                map_col = row.get("map_col", "")
-                map_row = row.get("map_row", "")
-                cell_type = row.get("map_cell_type", "")
+                if x_cell is None or y_cell is None:
+                    x_cm = to_float(r.get("x_cm", ""))
+                    y_cm = to_float(r.get("y_cm", ""))
+                    if x_cm is None or y_cm is None:
+                        continue
+                    x_cell = x_cm / GRID_CELL_SIZE_CM
+                    y_cell = y_cm / GRID_CELL_SIZE_CM
+
+                grid_angle = to_float(r.get("grid_angle", ""), None)
+                map_col = to_int(r.get("map_col", ""), None)
+                map_row = to_int(r.get("map_row", ""), None)
+                cell_type = r.get("map_cell_type", "")
                 if cell_type == "":
                     cell_type = get_cell_type(round(x_cell), round(y_cell))
 
                 points.append({
-                    "timestamp": _row_float(row, "timestamp", 0.0),
-                    "frame": frame,
+                    "timestamp": to_float(r.get("timestamp", ""), 0.0),
+                    "frame": to_int(r.get("frame", ""), None),
+                    "motion_state": r.get("motion_state", ""),
+                    "current_heading": r.get("current_heading", ""),
                     "x_cell": x_cell,
                     "y_cell": y_cell,
-                    "dx_pixel": _row_float(row, "dx_pixel", 0.0),
-                    "dy_pixel": _row_float(row, "dy_pixel", 0.0),
-                    "dx_cell": _row_float(row, "dx_cell", 0.0),
-                    "dy_cell": _row_float(row, "dy_cell", 0.0),
-                    "zone": row.get("zone", ""),
+                    "dx_pixel": to_float(r.get("dx_pixel", ""), 0.0),
+                    "dy_pixel": to_float(r.get("dy_pixel", ""), 0.0),
+                    "dx_cell": to_float(r.get("dx_cell", ""), 0.0),
+                    "dy_cell": to_float(r.get("dy_cell", ""), 0.0),
+                    "zone": r.get("zone", ""),
                     "grid_angle": grid_angle,
-                    "response": _row_float(row, "phase_response", 0.0),
-                    "map_col": None if map_col == "" else int(float(map_col)),
-                    "map_row": None if map_row == "" else int(float(map_row)),
+                    "yaw_error_deg": to_float(r.get("yaw_error_deg", ""), None),
+                    "angle_status": r.get("angle_status", ""),
+                    "turn_direction": r.get("turn_direction", ""),
+                    "turn_progress_deg": to_float(r.get("turn_progress_deg", ""), None),
+                    "turn_completed_by_vision": str(r.get("turn_completed_by_vision", "false")).lower() == "true",
+                    "response": to_float(r.get("phase_response", ""), 0.0),
+                    "map_col": map_col,
+                    "map_row": map_row,
                     "map_cell_type": cell_type,
-                    "is_obstacle": str(row.get("is_obstacle", "false")).lower() == "true",
-                    "detected_light_id": row.get("detected_light_id", ""),
-                    "detected_light_x_cell": None if row.get("detected_light_x_cell", "") == "" else float(row.get("detected_light_x_cell", 0.0)),
-                    "detected_light_y_cell": None if row.get("detected_light_y_cell", "") == "" else float(row.get("detected_light_y_cell", 0.0)),
-                    "detected_light_distance_cell": None if row.get("detected_light_distance_cell", "") == "" else float(row.get("detected_light_distance_cell", 0.0)),
-                    "light_based_x_cell": None if row.get("light_based_x_cell", "") == "" else float(row.get("light_based_x_cell", 0.0)),
-                    "light_based_y_cell": None if row.get("light_based_y_cell", "") == "" else float(row.get("light_based_y_cell", 0.0)),
-                    "light_position_error_cell": None if row.get("light_position_error_cell", "") == "" else float(row.get("light_position_error_cell", 0.0)),
-                    "light_validation_status": row.get("light_validation_status", ""),
+                    "is_obstacle": str(r.get("is_obstacle", "false")).lower() == "true",
+                    "detected_light_id": r.get("detected_light_id", ""),
+                    "detected_light_x_cell": to_float(r.get("detected_light_x_cell", ""), None),
+                    "detected_light_y_cell": to_float(r.get("detected_light_y_cell", ""), None),
+                    "detected_light_distance_cell": to_float(r.get("detected_light_distance_cell", ""), None),
+                    "light_based_x_cell": to_float(r.get("light_based_x_cell", ""), None),
+                    "light_based_y_cell": to_float(r.get("light_based_y_cell", ""), None),
+                    "light_position_error_cell": to_float(r.get("light_position_error_cell", ""), None),
+                    "light_validation_status": r.get("light_validation_status", ""),
+                    "motion_source": r.get("motion_source", ""),
+                    "selected_response": to_float(r.get("selected_response", ""), None),
+                    "light_track_status": r.get("light_track_status", ""),
+                    "grid_track_status": r.get("grid_track_status", ""),
+                    "turn_target_x_cell": to_float(r.get("turn_target_x_cell", ""), None),
+                    "turn_target_y_cell": to_float(r.get("turn_target_y_cell", ""), None),
+                    "turn_cell_distance_cell": to_float(r.get("turn_cell_distance_cell", ""), None),
+                    "turn_target_source": r.get("turn_target_source", ""),
                 })
             except Exception:
                 continue
+
     return points
+
 
 
 def normalize_points_to_first_point(points):
@@ -360,6 +440,14 @@ def draw_trajectory(canvas, points, view):
     current_color = (0, 0, 255) if not last.get("is_obstacle", False) else (0, 0, 180)
     cv2.circle(canvas, current, 9, current_color, -1)
 
+    # Router/controller-provided turn coordinate reference.
+    if last.get("turn_target_x_cell") is not None and last.get("turn_target_y_cell") is not None:
+        tx, ty = cell_to_canvas(last["turn_target_x_cell"], last["turn_target_y_cell"], view)
+        cv2.drawMarker(canvas, (tx, ty), (255, 0, 255),
+                       markerType=cv2.MARKER_TILTED_CROSS, markerSize=22, thickness=2)
+        cv2.putText(canvas, "TURN CELL", (tx + 8, ty + 16),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 0, 180), 2)
+
     # Independent robot position inferred from the matched ceiling light.
     if last.get("light_based_x_cell") is not None and last.get("light_based_y_cell") is not None:
         rx, ry = cell_to_canvas(last["light_based_x_cell"], last["light_based_y_cell"], view)
@@ -395,6 +483,9 @@ def draw_trajectory(canvas, points, view):
 
     info = [
         f"Current grid position: x={last['x_cell']:.3f}, y={last['y_cell']:.3f} cell",
+        f"State: {last.get('motion_state', 'N/A') or 'N/A'}, heading={last.get('current_heading', 'N/A') or 'N/A'}, yaw_err={last.get('yaw_error_deg') if last.get('yaw_error_deg') is not None else 'N/A'}",
+        f"Turn: dir={last.get('turn_direction', 'N/A') or 'N/A'}, progress={last.get('turn_progress_deg') if last.get('turn_progress_deg') is not None else 'N/A'}, done={last.get('turn_completed_by_vision', False)}",
+        f"Turn cell: x={last.get('turn_target_x_cell') if last.get('turn_target_x_cell') is not None else 'N/A'}, y={last.get('turn_target_y_cell') if last.get('turn_target_y_cell') is not None else 'N/A'}, dist={last.get('turn_cell_distance_cell') if last.get('turn_cell_distance_cell') is not None else 'N/A'}",
         f"Map cell: col={map_col}, row={map_row}, type={cell_type}",
         f"Detected light: {last.get('detected_light_id', '') or 'NO_LIGHT'}",
         f"Light match dist: {last.get('detected_light_distance_cell') if last.get('detected_light_distance_cell') is not None else 'N/A'} cell",
@@ -402,6 +493,8 @@ def draw_trajectory(canvas, points, view):
         f"Light-based robot: x={last.get('light_based_x_cell') if last.get('light_based_x_cell') is not None else 'N/A'}, y={last.get('light_based_y_cell') if last.get('light_based_y_cell') is not None else 'N/A'}",
         f"Zone: {last['zone']}",
         f"Grid angle: {grid_angle:.2f} deg" if grid_angle is not None else "Grid angle: N/A",
+        f"Motion source: {last.get('motion_source', '') or 'N/A'}, selected_resp={last.get('selected_response') if last.get('selected_response') is not None else 'N/A'}",
+        f"Track status: light={last.get('light_track_status', '') or 'N/A'}, grid={last.get('grid_track_status', '') or 'N/A'}",
         f"Phase response: {last['response']:.3f}",
         f"Points: {len(points)}",
         f"Trajectory range: dx={range_x:.3f}, dy={range_y:.3f} cell",

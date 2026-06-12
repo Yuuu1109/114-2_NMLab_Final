@@ -264,14 +264,14 @@
   "navigation": {
     "enabled": true,
     "start_cell": [
-      2,
-      10
+      43,
+      17
     ],
     "goal_cell": [
-      43,
-      14
+      30,
+      17
     ],
-    "initial_heading": "UP",
+    "initial_heading": "AUTO",
     "trunk_rows": [
       16,
       17

@@ -74,6 +74,8 @@ import navigation_router as nav_router  # noqa: E402
 TRAJECTORY_HEADER = [
     "timestamp",
     "frame",
+    "motion_state",
+    "current_heading",
     "x_cell",
     "y_cell",
     "dx_pixel",
@@ -83,6 +85,13 @@ TRAJECTORY_HEADER = [
     "zone",
     "grid_angle",
     "phase_response",
+    "yaw_error_deg",
+    "angle_status",
+    "turn_direction",
+    "turn_image_rotation_deg",
+    "turn_vehicle_rotation_deg",
+    "turn_progress_deg",
+    "turn_completed_by_vision",
     "map_col",
     "map_row",
     "map_cell_type",
@@ -95,6 +104,14 @@ TRAJECTORY_HEADER = [
     "light_based_y_cell",
     "light_position_error_cell",
     "light_validation_status",
+    "motion_source",
+    "selected_response",
+    "light_track_status",
+    "grid_track_status",
+    "turn_target_x_cell",
+    "turn_target_y_cell",
+    "turn_cell_distance_cell",
+    "turn_target_source",
 ]
 
 
@@ -127,7 +144,7 @@ def ensure_grid_cell_trajectory_log(path: Path, reset_log: bool = False) -> Path
     except Exception:
         header = []
 
-    required = {"x_cell", "y_cell", "dx_cell", "dy_cell", "map_col", "map_row", "map_cell_type", "is_obstacle", "detected_light_id", "light_based_x_cell", "light_validation_status"}
+    required = {"motion_state", "current_heading", "x_cell", "y_cell", "dx_cell", "dy_cell", "yaw_error_deg", "angle_status", "turn_direction", "turn_completed_by_vision", "map_col", "map_row", "map_cell_type", "is_obstacle", "detected_light_id", "light_based_x_cell", "light_validation_status", "turn_target_x_cell", "turn_target_y_cell", "turn_cell_distance_cell", "turn_target_source"}
     if not required.issubset(set(header)):
         backup = path.with_name(f"{path.stem}_old_{int(time.time())}{path.suffix}")
         shutil.move(str(path), str(backup))
@@ -164,6 +181,21 @@ def render_and_save_map(map_frame_count: int) -> tuple[np.ndarray, Path | None]:
         latest_path = mapper.save_map(canvas, output_dir, map_frame_count)
 
     return canvas, latest_path
+
+
+
+def _route_segment_target_cell(route: dict | None, segment_index: int):
+    """Return the current segment target cell from route_path.json, if available."""
+    if not route:
+        return None
+    segments = route.get("segments", [])
+    if not segments:
+        return None
+    idx = max(0, min(int(segment_index), len(segments) - 1))
+    target = segments[idx].get("to")
+    if isinstance(target, (list, tuple)) and len(target) == 2:
+        return [float(target[0]), float(target[1])]
+    return None
 
 
 def main() -> None:
@@ -382,11 +414,20 @@ def main() -> None:
 
             frame_rgb = vision.resize_frame_if_needed(frame_rgb, config)
 
-            if config.get("use_gamma_correction", False):
-                frame_rgb = apply_gamma_correction(
-                    frame_rgb,
-                    float(config.get("gamma", 0.6)),
-                )
+            # Provide the current planned navigation heading to the locator.
+            # The locator can map its forward/lateral motion estimate to map
+            # x/y according to this heading instead of using a fixed swap.
+            if navigation_enabled and route is not None:
+                config["current_nav_heading"] = logical_heading
+                segment_target = _route_segment_target_cell(route, current_segment_index)
+                if segment_target is not None:
+                    # This is the router-provided coordinate of the current segment endpoint.
+                    # During TURN state it is the turn cell reference; during FORWARD it is
+                    # also useful as the next target reference for monitoring.
+                    config["router_turn_cell"] = segment_target
+                    config["current_segment_target_cell"] = segment_target
+            else:
+                config["current_nav_heading"] = config.get("planned_heading", "UP")
 
             process_result = vision.process_frame(
                 frame_rgb,
@@ -416,6 +457,9 @@ def main() -> None:
                 # Add light/localization fields from the latest trajectory row if available.
                 nav_status["position_source"] = "vision_grid_with_optional_light_correction"
                 nav_status["turn_flag_for_controller"] = bool(nav_status.get("turn_flag", False))
+                nav_status["turn_target_cell"] = config.get("router_turn_cell", config.get("turn_target_cell", None))
+                nav_status["turn_cell_distance_cell"] = config.get("turn_cell_distance_cell", None)
+                nav_status["turn_completed_by_vision"] = bool(config.get("turn_completed_by_vision", False))
                 nav_router.save_navigation_status(nav_status, navigation_status_path)
 
             if final_debug_display_enabled and frame_count % final_debug_every == 0:
